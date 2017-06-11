@@ -24,10 +24,10 @@ NSQ是一个实时的分布式消息平台。它的设计目标是为在多台�
 - nsqd是一个接收、排队、然后转发消息到客户端的进程。
 - nsqlookupd 管理拓扑信息并提供最终一致性的发现服务。
 - nsqadmin用于实时查看集群的统计数据（并且执行各种各样的管理任务）。
-- 
+
 NSQ中的数据流模型是由streams和consumers组成的tree。topic是一种独特的stream。channel是一个订阅了给定topic consumers 逻辑分组。
 
-![](images/nsq-1.gif?raw=true)
+![](images/nsq-1.gif) 
 
 **Topics 和 Channels**
 
