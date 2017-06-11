@@ -11,6 +11,7 @@ import (
 	"github.com/nsqio/nsq/internal/lg"
 )
 
+// HttpRouter is a lightweight high performance HTTP request router (also called multiplexer or just mux for short) for Go.
 type Decorator func(APIHandler) APIHandler
 
 type APIHandler func(http.ResponseWriter, *http.Request, httprouter.Params) (interface{}, error)
