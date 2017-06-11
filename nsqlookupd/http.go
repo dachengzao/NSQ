@@ -6,8 +6,8 @@ import (
 	"net/http/pprof"
 	"sync/atomic"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/nsqio/nsq/internal/http_api"
+	"github.com/nsqio/nsq/internal/httprouter"
 	"github.com/nsqio/nsq/internal/protocol"
 	"github.com/nsqio/nsq/internal/version"
 )

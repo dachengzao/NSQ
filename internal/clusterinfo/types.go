@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/blang/semver"
 	"github.com/nsqio/nsq/internal/quantile"
+	"github.com/nsqio/nsq/internal/semver"
 )
 
 type ProducerTopic struct {

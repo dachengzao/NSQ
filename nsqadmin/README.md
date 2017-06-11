@@ -3,6 +3,8 @@
 `nsqadmin` is a Web UI to view aggregated cluster stats in realtime and perform various
 administrative tasks.
 
+nsqadmin用于实时查看集群的统计数据（并且执行各种各样的管理任务）。
+
 Read the [docs](http://nsq.io/components/nsqadmin.html)
 
 ## Working Locally
