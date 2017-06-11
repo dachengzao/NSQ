@@ -1,5 +1,50 @@
 # NSQ研究与实践
 
+## 概要
+
+NSQ是由3个进程组成的：
+- nsqd是一个接收、排队、然后转发消息到客户端的进程。
+- nsqlookupd 管理拓扑信息并提供最终一致性的发现服务。
+- nsqadmin用于实时查看集群的统计数据（并且执行各种各样的管理任务）。
+- 
+NSQ中的数据流模型是由streams和consumers组成的tree。topic是一种独特的stream。channel是一个订阅了给定topic consumers 逻辑分组。
+
+![](images/nsq-1.gif?raw=true)
+
+## Topics 和 Channels
+
+Topics 和 channels，是NSQ的核心成员，它们是如何使用go语言的特点来设计系统的最好示例。
+
+**Topics**
+
+Go的channels（为防止歧义，以下简称为“go-chan”）是表达队列的一种自然方式，因此一个NSQ的topic/channel，其核心就是一个存放消息指针的go-chan缓冲区。缓冲区的大小由  --mem-queue-size 配置参数确定。
+
+读取数据后，向topic发布消息的行为包括：
+- 实例化消息结构 (并分配消息体的字节数组)
+- read-lock 并获得 Topic
+- read-lock 并检查是否可以发布
+- 发送到go-chan缓冲区
+
+为了从一个topic和它的channels获得消息，topic不能按典型的方式用go-chan来接收，因为多个goroutines在一个go-chan上接收将会分发消息，而期望的结果是把每个消息复制到所有channel(goroutine)中。
+
+此外，每个topic维护3个主要goroutine。第一个叫做 router，负责从传入的go-chan中读取新发布的消息，并存储到一个队列里（内存或硬盘）。
+
+第二个，称为 messagePump, 它负责复制和推送消息到如上所述的channel中。
+
+第三个负责 DiskQueue IO，将在后面讨论。
+
+**Channels**
+
+Channels稍微有点复杂，它的根本目的是向外暴露一个单输入单输出的go-chan（事实上从抽象的角度来说，消息可能存在内存里或硬盘上）；
+
+![](images/nsq-2.png?raw=true)
+
+另外，每一个channel维护2个时间优先级队列，用于延时和消息超时的处理（并有2个伴随goroutine来监视它们）。
+
+并行化的改善是通过管理每个channel的数据结构来实现，而不是依靠go运行时的全局定时器。
+
+注意：在内部，go运行时使用一个优先级队列和goroutine来管理定时器。它为整个time包（但不局限于）提供了支持。它通常不需要用户来管理时间优先级队列，但一定要记住，它是一个有锁的数据结构，有可能会影响 GOMAXPROCS>1 的性能。请参阅runtime/time.goc。
+
 ## 组件
 
 - Topic ：一个topic就是程序发布消息的一个逻辑键，当程序第一次发布消息时就会创建topic。
