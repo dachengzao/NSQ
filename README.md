@@ -53,3 +53,79 @@ nsqd --lookupd-tcp-address=127.0.0.1:4160
 ```bash
 nsqadmin --lookupd-http-address=127.0.0.1:4161
 ```
+
+## 快速启动NSQ
+
+brew install nsq
+
+启动拓扑发现 nsqlookupd
+
+启动主服务、并注册 nsqd --lookupd-tcp-address=127.0.0.1:4160
+
+启动WEB UI管理程序 nsqadmin --lookupd-http-address=127.0.0.1:4161
+
+## 简单使用演示
+
+可以用浏览器访问* http://127.0.0.1:4171/ * 观察数据
+
+也可尝试下 watch -n 0.5 "curl -s http://127.0.0.1:4151/stats" 监控统计数据
+
+发布一个消息 
+
+```bash
+curl -d 'hello world 1' 'http://127.0.0.1:4151/put?topic=test'
+```
+
+创建一个消费者 
+
+```bash
+nsq_to_file --topic=test --output-dir=/tmp --lookupd-http-address=127.0.0.1:4161
+```
+
+Golang使用NSQ
+
+```go
+package main
+import (
+	"log"
+	"time"
+	"github.com/nsqio/go-nsq"
+)
+func main() {
+	go startConsumer()
+	startProducer()
+}
+// 生产者
+func startProducer() {
+	cfg := nsq.NewConfig()
+	producer, err := nsq.NewProducer("127.0.0.1:4150", cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 发布消息
+	for {
+		if err := producer.Publish("test", []byte("test message")); err != nil {
+			log.Fatal("publish error: " + err.Error())
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+// 消费者
+func startConsumer() {
+	cfg := nsq.NewConfig()
+	consumer, err := nsq.NewConsumer("test", "sensor01", cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// 设置消息处理函数
+	consumer.AddHandler(nsq.HandlerFunc(func(message *nsq.Message) error {
+		log.Println(string(message.Body))
+		return nil
+	}))
+	// 连接到单例nsqd
+	if err := consumer.ConnectToNSQD("127.0.0.1:4150"); err != nil {
+		log.Fatal(err)
+	}
+	<-consumer.StopChan
+}
+```
