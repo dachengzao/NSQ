@@ -1,28 +1,5 @@
 # NSQ研究与实践
 
-## 介绍
-NSQ是一个基于Go语言的分布式实时消息平台，它基于MIT开源协议发布，由bitly公司开源出来的一款简单易用的消息中间件。
-
-官方和第三方还为NSQ开发了众多客户端功能库，如官方提供的基于HTTP的nsqd、Go客户端go-nsq、Python客户端pynsq、基于Node.js的JavaScript客户端nsqjs、异步C客户端libnsq、Java客户端nsq-java以及基于各种语言的众多第三方客户端功能库。
-
-## Features
-
-**1.Distributed** 
-
-NSQ提供了分布式的，去中心化，且没有单点故障的拓扑结构，稳定的消息传输发布保障，能够具有高容错和HA（高可用）特性。
-
-**2.Scalable易于扩展** 
-
-NSQ支持水平扩展，没有中心化的brokers。内置的发现服务简化了在集群中增加节点。同时支持pub-sub和load-balanced 的消息分发。
-
-**3.Ops Friendly** 
-
-NSQ非常容易配置和部署，生来就绑定了一个管理界面。二进制包没有运行时依赖。官方有Docker image。
-
-**4.Integrated高度集成** 
-
-官方的 Go 和 Python库都有提供。而且为大多数语言提供了库。
-
 ## 组件
 
 - Topic ：一个topic就是程序发布消息的一个逻辑键，当程序第一次发布消息时就会创建topic。
