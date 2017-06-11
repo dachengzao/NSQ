@@ -3,6 +3,10 @@ NSQ是一个基于Go语言的分布式实时消息平台，它基于MIT开源协
 
 官方和第三方还为NSQ开发了众多客户端功能库，如官方提供的基于HTTP的nsqd、Go客户端go-nsq、Python客户端pynsq、基于Node.js的JavaScript客户端nsqjs、异步C客户端libnsq、Java客户端nsq-java以及基于各种语言的众多第三方客户端功能库。
 
+NSQ是一个基于Go语言的分布式实时消息平台，可用于大规模系统中的实时消息服务，并且每天能够处理数亿级别的消息，其设计目标是为在分布式环境下运行的去中心化服务提供一个强大的基础架构。
+
+NSQ非常容易配置和部署，且具有最大的灵活性，支持众多消息协议。
+
 ## Features
 
 **1.Distributed** 
@@ -34,15 +38,26 @@ NSQ非常容易配置和部署，生来就绑定了一个管理界面。二进�
 - nsqlookupd 管理拓扑信息并提供最终一致性的发现服务。
 - nsqadmin用于实时查看集群的统计数据（并且执行各种各样的管理任务）。
 
+### NSQ的四种重要组件构成：
+
+- nsqd：一个负责接收、排队、转发消息到客户端的守护进程，它可以独立运行，不过通常它是由 nsqlookupd 实例所在集群配置的
+- nsqlookupd：管理拓扑信息并提供最终一致性的发现服务的守护进程
+- nsqadmin：一套Web用户界面，可实时查看集群的统计数据和执行各种各样的管理任务
+- utilities：常见基础功能、数据流处理工具，如nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_to_nsq、to_nsq
+
+## NSQ数据流模型
+
 NSQ中的数据流模型是由streams和consumers组成的tree。topic是一种独特的stream。channel是一个订阅了给定topic consumers 逻辑分组。
  
-![](/images/nsq-1.png?raw=true)
+![](images/nsq-1.gif?raw=true)
 
-**Topics 和 Channels**
+**Topics 和 channels，是NSQ的核心成员。** 它们是如何使用go语言的特点来设计系统的最好示例。
 
-Topics 和 channels，是NSQ的核心成员，它们是如何使用go语言的特点来设计系统的最好示例。
+**Topics**
 
-Go的channels（为防止歧义，以下简称为“go-chan”）是表达队列的一种自然方式，因此一个NSQ的topic/channel，其核心就是一个存放消息指针的go-chan缓冲区。缓冲区的大小由  --mem-queue-size 配置参数确定。
+Go的channels（为防止歧义，以下简称为“go-chan”）是表达队列的一种自然方式。
+
+**一个NSQ的topic/channel，其核心就是一个存放消息指针的go-chan缓冲区。** 缓冲区的大小由  --mem-queue-size 配置参数确定。
 
 读取数据后，向topic发布消息的行为包括：
 - 实例化消息结构 (并分配消息体的字节数组)
@@ -52,15 +67,19 @@ Go的channels（为防止歧义，以下简称为“go-chan”）是表达队列
 
 为了从一个topic和它的channels获得消息，topic不能按典型的方式用go-chan来接收，因为多个goroutines在一个go-chan上接收将会分发消息，而期望的结果是把每个消息复制到所有channel(goroutine)中。
 
-此外，每个topic维护3个主要goroutine。第一个叫做 router，负责从传入的go-chan中读取新发布的消息，并存储到一个队列里（内存或硬盘）。
+此外，每个topic维护3个主要goroutine。
 
-第二个，称为 messagePump, 它负责复制和推送消息到如上所述的channel中。
+第一个，router，负责从传入的go-chan中读取新发布的消息，并存储到一个队列里（内存或硬盘）。
 
-第三个负责 DiskQueue IO，将在后面讨论。
+第二个，messagePump, 它负责复制和推送消息到如上所述的channel中。
+
+第三个，DiskQueue IO，通过DiskQueue透明的把消息写入到磁盘上。将在后面讨论。
+
+**Channels**
 
 Channels稍微有点复杂，它的根本目的是向外暴露一个单输入单输出的go-chan（事实上从抽象的角度来说，消息可能存在内存里或硬盘上）；
 
-![](images/nsq-1.gif?raw=true)
+![](images/nsq-2.png?raw=true)
 
 另外，每一个channel维护2个时间优先级队列，用于延时和消息超时的处理（并有2个伴随goroutine来监视它们）。
 
@@ -88,20 +107,9 @@ for msg := range c.incomingMsgChan {
 ```
 利用go语言的select语句，只需要几行代码就可以实现这个功能：上面的default分支只有在memoryMsgChan 满的情况下才会执行。
 
-NSQ也有临时channel的概念。临时channel会丢弃溢出的消息（而不是写入到磁盘），当没有客户订阅后它就会消失。这是一个Go接口的完美用例。Topics和channels有一个的结构成员被声明为Backend接口，而不是一个具体的类型。一般的 topics和channels使用DiskQueue，而临时channel则使用了实现Backend接口的DummyBackendQueue。
+NSQ也有临时channel的概念。临时channel会丢弃溢出的消息（而不是写入到磁盘），当没有客户订阅后它就会消失。
 
-## NSQ的用法
-
-NSQ是一个基于Go语言的分布式实时消息平台，可用于大规模系统中的实时消息服务，并且每天能够处理数亿级别的消息，其设计目标是为在分布式环境下运行的去中心化服务提供一个强大的基础架构。
-
-NSQ非常容易配置和部署，且具有最大的灵活性，支持众多消息协议。
-
-### NSQ的四个重要组件构成：
-
-- nsqd：一个负责接收、排队、转发消息到客户端的守护进程，它可以独立运行，不过通常它是由 nsqlookupd 实例所在集群配置的
-- nsqlookupd：管理拓扑信息并提供最终一致性的发现服务的守护进程
-- nsqadmin：一套Web用户界面，可实时查看集群的统计数据和执行各种各样的管理任务
-- utilities：常见基础功能、数据流处理工具，如nsq_stat、nsq_tail、nsq_to_file、nsq_to_http、nsq_to_nsq、to_nsq
+这是一个Go接口的完美用例。Topics和channels有一个的结构成员被声明为Backend接口，而不是一个具体的类型。一般的 topics和channels使用DiskQueue，而临时channel则使用了实现Backend接口的DummyBackendQueue。
 
 ## 快速启动NSQ
 
@@ -126,16 +134,6 @@ nsqd --lookupd-tcp-address=127.0.0.1:4160
 ```bash
 nsqadmin --lookupd-http-address=127.0.0.1:4161
 ```
-
-## 快速启动NSQ
-
-brew install nsq
-
-启动拓扑发现 nsqlookupd
-
-启动主服务、并注册 nsqd --lookupd-tcp-address=127.0.0.1:4160
-
-启动WEB UI管理程序 nsqadmin --lookupd-http-address=127.0.0.1:4161
 
 ## 简单使用演示
 
