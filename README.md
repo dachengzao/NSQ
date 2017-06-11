@@ -27,7 +27,7 @@ NSQ是一个实时的分布式消息平台。它的设计目标是为在多台�
 
 NSQ中的数据流模型是由streams和consumers组成的tree。topic是一种独特的stream。channel是一个订阅了给定topic consumers 逻辑分组。
  
-![](./images/nsq-1.png?raw=true)
+![](/images/nsq-1.png?raw=true)
 
 **Topics 和 Channels**
 
