@@ -238,7 +238,7 @@ NSQ推荐通过他们相应的nsqd实例使用协同定位发布者，这意味�
 
 事件topic会复制这些消息并且在每一个连接topic的channel上进行排队，在我们的案例中，有三个channel，它们其中之一作为档案channel。消费者会获取这些消息并且上传到S3。
 
-![](images/2.png?raw=true)
+![](images/nsq-1.gif?raw=true)
 
 每个channel的消息都会进行排队，直到一个worker把他们消费，如果此队列超出了内存限制，消息将会被写入到磁盘中。Nsqd节点首先会向nsqlookup广播他们的位置信息，一旦它们注册成功，worker将会从nsqlookup服务器节点上发现所有包含事件topic的nsqd节点。
 
