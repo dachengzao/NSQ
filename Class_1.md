@@ -9,7 +9,7 @@ NSQ是由3个进程组成的：
 - 
 NSQ中的数据流模型是由streams和consumers组成的tree。topic是一种独特的stream。channel是一个订阅了给定topic consumers 逻辑分组。
 
-![NSQ][1]
+![](images/nsq-1.gif?raw=true)
 
 **Topics 和 Channels**
 
@@ -33,7 +33,7 @@ Go的channels（为防止歧义，以下简称为“go-chan”）是表达队列
 
 Channels稍微有点复杂，它的根本目的是向外暴露一个单输入单输出的go-chan（事实上从抽象的角度来说，消息可能存在内存里或硬盘上）；
 
-![enter description here][2]
+![](images/nsq-2.png?raw=true)
 
 另外，每一个channel维护2个时间优先级队列，用于延时和消息超时的处理（并有2个伴随goroutine来监视它们）。
 
@@ -73,7 +73,7 @@ Go 的垃圾回收机制当然会持续改进，但普遍的真理是：创建�
 
 首先，理解垃圾回收是如何在实际的工作负载中运行的是非常重要的。为此，nsqd 以 statsd 的格式 (与其它内部指标一起) 发布垃圾回收的统计信息。nsqadmin 显示这些指标的图表，可以让你深入了解它在频率和持续时间两方面产生的影响：
 
-![enter description here][3]
+![](images/nsq-3.png?raw=true)
 
 为了减少垃圾，你需要知道它们是在哪生成的。再次回到Go的工具链，它提供的答案如下：
 
@@ -157,7 +157,7 @@ $ watch -n 0.5 'curl -s http://127.0.0.1:4151/stats | grep -v connected'
 
 打印出的结果如下: NSQ
 
-![enter description here][4]
+![](images/nsq-4.png?raw=true)
 
 此外, Go 1.2 还有很多监控指标measurable HTTP performance gains. 每次更新Go版本后都能看到性能方面的改进，真是让人振奋！
 
