@@ -111,6 +111,78 @@ NSQ也有临时channel的概念。临时channel会丢弃溢出的消息（而不
 
 这是一个Go接口的完美用例。Topics和channels有一个的结构成员被声明为Backend接口，而不是一个具体的类型。一般的 topics和channels使用DiskQueue，而临时channel则使用了实现Backend接口的DummyBackendQueue。
 
+## TCP 协议
+
+NSQ的TCP协议是一个闪亮的会话典范，在这个会话中垃圾回收优化的理论发挥了极大的效用。协议的结构是一个有很长的前缀框架，这使得协议更直接，易于编码和解码。如下：
+
+``` go
+[x][x][x][x][x][x][x][x][x][x][x][x]...
+|  (int32) ||  (int32) || (binary)
+|  4-byte  ||  4-byte  || N-byte
+------------------------------------...
+    size      frame ID     data
+```
+
+- 因为框架的组成部分的确切类型和大小是提前知道的，所以我们可以规避了使用方便的编码二进制包的Read()和Write()封装（及它们外部接口的查找和会话）。反之，我们使用直接调用 binary.BigEndian方法。
+
+- 为了消除socket输入输出的系统调用，客户端net.Conn被封装了bufio.Reader和bufio.Writer。这个Reader通过暴露ReadSlice()，复用了它自己的缓冲区。这样几乎消除了读完socket时的分配，这极大的降低了垃圾回收的压力。
+
+这可能是因为与数据相关的大多数命令并没有逃逸（在边缘情况下这是假的，数据被强制复制）。
+
+- 在更低层，MessageID 被定义为 [16]byte，这样可以将其作为 map 的 key（slice 无法用作 map 的 key)。然而，考虑到从 socket 读取的数据被保存为 []byte，胜于通过分配字符串类型的 key 来产生垃圾，并且为了避免从 slice 到 MessageID 的支撑数组产生复制操作，unsafe 包被用来将 slice 直接转换为 MessageID：
+
+``` go
+id := *(*nsq.MessageID)(unsafe.Pointer(&msgID))
+```
+
+注意: 这是个技巧。如果编译器对此已经做了优化，或者 Issue 3512 被打开可能会解决这个问题，那就不需要它了。issue 5376 也值得通读，它讲述了在无须分配和拷贝时，和 string 类型可被接收的地方，可以交换使用的“类常量”的 byte 类型。
+
+- 类似的，Go 标准库仅仅在 string 上提供了数值转换方法。为了避免 string 的分配，nsqd 使用了惯用的十进制转换方法，用于对[]byte 直接操作。
+
+这些看起来像是微优化，但 TCP 协议包含了一些最热的代码执行路径。总体来说，以每秒数万消息的速度来说，它们对分配和系统开销的数量有着显著的影响：
+
+``` matlab
+benchmark                    old ns/op    new ns/op    delta
+BenchmarkProtocolV2Data           3575         1963  -45.09%
+ 
+benchmark                    old ns/op    new ns/op    delta
+BenchmarkProtocolV2Sub256        57964        14568  -74.87%
+BenchmarkProtocolV2Sub512        58212        16193  -72.18%
+BenchmarkProtocolV2Sub1k         58549        19490  -66.71%
+BenchmarkProtocolV2Sub2k         63430        27840  -56.11%
+ 
+benchmark                   old allocs   new allocs    delta
+BenchmarkProtocolV2Sub256           56           39  -30.36%
+BenchmarkProtocolV2Sub512           56           39  -30.36%
+BenchmarkProtocolV2Sub1k            56           39  -30.36%
+BenchmarkProtocolV2Sub2k            58           42  -27.59%
+```
+
+
+**HTTP**
+
+NSQ的HTTP API是基于 Go's net/http 包实现的. 就是常见的HTTP应用,在大多数高级编程语言中都能直接使用而无需额外的三方包。
+
+简洁就是它最有力的武器，Go的 HTTP tool-chest最强大的就是其调试功能.  net/http/pprof 包直接集成了HTTP server，可以方便的访问CPU, heap,goroutine, and OS 进程文档 .gotool就能直接实现上述操作:
+
+``` go
+$ go tool pprof http://127.0.0.1:4151/debug/pprof/profile
+```
+
+这对于调试和实时监控进程非常有用！
+
+此外，/stats端端返回JSON或是美观的文本格式信息，这让管理员使用命令行实时监控非常容易:
+
+``` gp
+$ watch -n 0.5 'curl -s http://127.0.0.1:4151/stats | grep -v connected'
+```
+
+打印出的结果如下: NSQ
+
+![](images/nsq-4.png?raw=true)
+
+此外, Go还有很多监控指标measurable HTTP performance gains. 每次更新Go版本后都能看到性能方面的改进，真是让人振奋！
+
 ## 快速启动NSQ
 
 ```bash
